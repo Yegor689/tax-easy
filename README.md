@@ -18,13 +18,45 @@ Cross-platform via wxPython; developed on macOS, targets Ubuntu.
 
 ## Setup
 
+### macOS / Windows
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
-On Ubuntu, `wx.html2.WebView` (used for the calculation detail view) requires WebKitGTK:
+wxPython ships prebuilt wheels for these platforms on PyPI, so this just works.
+
+### Ubuntu
+
+wxPython has **no prebuilt wheel on PyPI for Linux** — `pip install` falls back to compiling wxWidgets from source, which needs GTK3 development headers you almost certainly don't have installed, and takes 15–30+ minutes even once they are. Two ways to avoid that:
+
+**Option A — install a prebuilt wheel from wxPython's own package index first** (recommended; skips compiling entirely):
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -U -f https://extras.wxpython.org/wxPython4/extras/linux/gtk3/ubuntu-24.04 wxPython
+pip install -e ".[dev]"
+```
+
+Installing wxPython first means the second command finds it already satisfied and never tries to build it. Replace `ubuntu-24.04` with your release (e.g. `ubuntu-22.04`) — see the [full list](https://extras.wxpython.org/wxPython4/extras/linux/gtk3/) if you're not sure, or if this exact version doesn't have a wheel for your Python version yet.
+
+**Option B — let it compile from source**, if no prebuilt wheel matches your Ubuntu release or Python version. Install the build dependencies first:
+
+```bash
+sudo apt install build-essential pkg-config libgtk-3-dev libnotify-dev \
+    libsdl2-dev libjpeg-dev libtiff-dev libsm-dev libwebkit2gtk-4.1-dev \
+    libgstreamer-plugins-base1.0-dev freeglut3-dev libgl1-mesa-dev libglu1-mesa-dev
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+```
+
+Then go get coffee — building wxWidgets from source is slow.
+
+Either way, `wx.html2.WebView` (used for the Calculation Detail view) needs WebKitGTK at *runtime* regardless of how wxPython itself was installed:
 
 ```bash
 sudo apt install libwebkit2gtk-4.1-0  # or libwebkit2gtk-4.0-37 on older Ubuntu
