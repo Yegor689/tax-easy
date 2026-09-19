@@ -22,6 +22,16 @@ class MainFrame(wx.Frame):
         super().__init__(None, title="TaxEasy", size=(1100, 750))
 
         self.current_rules: TaxYearRules | None = None
+        # The year/status a loaded TaxpayerInput actually belongs to --
+        # distinct from reading self.year_choice/status_choice live, since
+        # wx fires EVT_CHOICE/EVT_COMBOBOX *after* the dropdown's own
+        # selection has already changed. Reading the dropdowns fresh inside
+        # a pending debounced save (armed by an edit made under the OLD
+        # status) would silently save that edit under the NEW status
+        # instead once the switch happens. These track what's actually
+        # loaded so a save always targets the right file.
+        self._active_year: int | None = None
+        self._active_status: str | None = None
         self._recompute_timer = wx.CallLater(RECOMPUTE_DELAY_MS, self._recompute)
         self._recompute_timer.Stop()
 
@@ -87,17 +97,30 @@ class MainFrame(wx.Frame):
             return datetime.date.today().year
 
     def _load_current_year(self):
+        # Flush any pending debounced save FIRST, against the year/status
+        # that's still active (i.e. what the form's current contents
+        # actually belong to) -- not the dropdowns, which may already show
+        # the new selection by the time this runs (see _active_year comment
+        # in __init__).
+        if self._recompute_timer.IsRunning():
+            self._recompute_timer.Stop()
+        self._save_current_input()
+
         year = self._year()
         status = self._filing_status()
 
         self.current_rules = self._resolve_rules(year)
         if self.current_rules is None:
+            self._active_year = None
+            self._active_status = None
             self.results_panel.clear()
             self.explanation_view.clear()
             return
 
         saved_input = persistence.load(year, status)
         self.input_panel.load(saved_input)
+        self._active_year = year
+        self._active_status = status
         self._recompute()
 
     def _resolve_rules(self, year: int) -> TaxYearRules | None:
@@ -108,7 +131,6 @@ class MainFrame(wx.Frame):
             return None
 
     def _on_year_or_status_changed(self, evt):
-        self._save_current_input()
         self._load_current_year()
 
     def _on_input_changed(self, evt):
@@ -120,11 +142,9 @@ class MainFrame(wx.Frame):
         self._recompute()
 
     def _save_current_input(self):
-        if self.current_rules is None:
+        if self.current_rules is None or self._active_year is None or self._active_status is None:
             return
-        year = self._year()
-        status = self._filing_status()
-        input_ = self.input_panel.build_input(year, status)
+        input_ = self.input_panel.build_input(self._active_year, self._active_status)
         persistence.save(input_)
 
     def _recompute(self):
