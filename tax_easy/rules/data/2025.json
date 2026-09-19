@@ -1,0 +1,44 @@
+{
+  "year": 2025,
+  "source": "irs.gov/newsroom/irs-releases-tax-inflation-adjustments-for-tax-year-2025 (Rev. Proc. 2024-40); LTCG thresholds confirmed directly via irs.gov/taxtopics/tc409; SALT cap phasedown per OBBBA (2025-2029), cross-verified via bipartisanpolicy.org and comptroller.nyc.gov analyses",
+  "ordinary_brackets": {
+    "single": [
+      {"rate": 0.10, "upper": 11925},
+      {"rate": 0.12, "upper": 48475},
+      {"rate": 0.22, "upper": 103350},
+      {"rate": 0.24, "upper": 197300},
+      {"rate": 0.32, "upper": 250525},
+      {"rate": 0.35, "upper": 626350},
+      {"rate": 0.37, "upper": null}
+    ],
+    "mfj": [
+      {"rate": 0.10, "upper": 23850},
+      {"rate": 0.12, "upper": 96950},
+      {"rate": 0.22, "upper": 206700},
+      {"rate": 0.24, "upper": 394600},
+      {"rate": 0.32, "upper": 501050},
+      {"rate": 0.35, "upper": 751600},
+      {"rate": 0.37, "upper": null}
+    ]
+  },
+  "standard_deduction": {
+    "single": 15000,
+    "mfj": 30000
+  },
+  "ltcg_brackets": {
+    "single": [
+      {"rate": 0.00, "upper": 48350},
+      {"rate": 0.15, "upper": 533400},
+      {"rate": 0.20, "upper": null}
+    ],
+    "mfj": [
+      {"rate": 0.00, "upper": 96700},
+      {"rate": 0.15, "upper": 600050},
+      {"rate": 0.20, "upper": null}
+    ]
+  },
+  "salt_cap": {
+    "single": {"cap": 40000, "phasedown_threshold": 500000, "phasedown_rate": 0.30, "floor": 10000},
+    "mfj": {"cap": 40000, "phasedown_threshold": 500000, "phasedown_rate": 0.30, "floor": 10000}
+  }
+}

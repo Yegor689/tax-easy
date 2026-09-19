@@ -1,0 +1,27 @@
+[project]
+name = "tax-easy"
+version = "0.1.0"
+description = "Desktop app to estimate year-end federal tax balance due"
+requires-python = ">=3.10"
+dependencies = [
+    "wxPython>=4.2",
+    "platformdirs>=4.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[project.scripts]
+tax-easy = "tax_easy.__main__:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["tax_easy*"]
+
+[tool.setuptools.package-data]
+tax_easy = ["rules/data/*.json"]

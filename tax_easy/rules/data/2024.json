@@ -1,0 +1,44 @@
+{
+  "year": 2024,
+  "source": "irs.gov/newsroom/irs-provides-tax-inflation-adjustments-for-tax-year-2024 (Rev. Proc. 2023-34); LTCG thresholds cross-verified via bradfordtaxinstitute.com/Free_Resources/2024-Capital-Gains-Rates and cnbc.com 2023-11-14 IRS coverage",
+  "ordinary_brackets": {
+    "single": [
+      {"rate": 0.10, "upper": 11600},
+      {"rate": 0.12, "upper": 47150},
+      {"rate": 0.22, "upper": 100525},
+      {"rate": 0.24, "upper": 191950},
+      {"rate": 0.32, "upper": 243725},
+      {"rate": 0.35, "upper": 609350},
+      {"rate": 0.37, "upper": null}
+    ],
+    "mfj": [
+      {"rate": 0.10, "upper": 23200},
+      {"rate": 0.12, "upper": 94300},
+      {"rate": 0.22, "upper": 201050},
+      {"rate": 0.24, "upper": 383900},
+      {"rate": 0.32, "upper": 487450},
+      {"rate": 0.35, "upper": 731200},
+      {"rate": 0.37, "upper": null}
+    ]
+  },
+  "standard_deduction": {
+    "single": 14600,
+    "mfj": 29200
+  },
+  "ltcg_brackets": {
+    "single": [
+      {"rate": 0.00, "upper": 47025},
+      {"rate": 0.15, "upper": 518900},
+      {"rate": 0.20, "upper": null}
+    ],
+    "mfj": [
+      {"rate": 0.00, "upper": 94050},
+      {"rate": 0.15, "upper": 583750},
+      {"rate": 0.20, "upper": null}
+    ]
+  },
+  "salt_cap": {
+    "single": {"cap": 10000, "phasedown_threshold": null, "phasedown_rate": null, "floor": null},
+    "mfj": {"cap": 10000, "phasedown_threshold": null, "phasedown_rate": null, "floor": null}
+  }
+}
