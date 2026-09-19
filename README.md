@@ -37,11 +37,13 @@ wxPython has **no prebuilt wheel on PyPI for Linux** — `pip install` falls bac
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -U -f https://extras.wxpython.org/wxPython4/extras/linux/gtk3/ubuntu-24.04 wxPython
+pip install --no-index -f https://extras.wxpython.org/wxPython4/extras/linux/gtk3/ubuntu-24.04 wxPython
 pip install -e ".[dev]"
 ```
 
-Installing wxPython first means the second command finds it already satisfied and never tries to build it. Replace `ubuntu-24.04` with your release (e.g. `ubuntu-22.04`) — see the [full list](https://extras.wxpython.org/wxPython4/extras/linux/gtk3/) if you're not sure, or if this exact version doesn't have a wheel for your Python version yet.
+`--no-index` matters here — without it, `pip install -U -f <url> wxPython` still checks PyPI too and picks the *highest available version overall*, which for Linux is a source-only release with no prebuilt wheel, so it silently falls back to compiling from source anyway (`-f`/`--find-links` supplements pip's normal index, it doesn't override it). `--no-index` restricts the search to that URL alone, so pip is forced to pick the newest wheel actually published there.
+
+Installing wxPython first this way means the second command finds it already satisfied and never tries to touch it. Replace `ubuntu-24.04` with your release (e.g. `ubuntu-22.04`) — see the [full list](https://extras.wxpython.org/wxPython4/extras/linux/gtk3/) if you're not sure, or if this exact version doesn't have a wheel for your Python version yet.
 
 **Option B — let it compile from source**, if no prebuilt wheel matches your Ubuntu release or Python version. Install the build dependencies first:
 
