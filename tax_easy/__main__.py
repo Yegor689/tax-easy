@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from tax_easy.app import TaxEstimatorApp
+from tax_easy.app import TaxEasyApp
 
 
 def main():
-    app = TaxEstimatorApp()
+    app = TaxEasyApp()
     app.MainLoop()
 
 

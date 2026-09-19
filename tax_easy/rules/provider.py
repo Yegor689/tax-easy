@@ -38,7 +38,7 @@ def get_rules(year: int) -> TaxYearRules:
 
     raise RulesUnavailable(
         f"Rules for {year} are not available. This app only supports years "
-        "bundled with it -- add a hand-verified rules/data/{year}.json file "
+        f"bundled with it -- add a hand-verified rules/data/{year}.json file "
         "to support additional years."
     )
 

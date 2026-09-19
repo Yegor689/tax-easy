@@ -7,7 +7,7 @@ import wx
 from tax_easy.ui.main_frame import MainFrame
 
 
-class TaxEstimatorApp(wx.App):
+class TaxEasyApp(wx.App):
     def OnInit(self):
         frame = MainFrame()
         frame.Show()

@@ -83,6 +83,7 @@ class MainFrame(wx.Frame):
         self.year_choice.Bind(wx.EVT_TEXT_ENTER, self._on_year_or_status_changed)
         self.status_choice.Bind(wx.EVT_CHOICE, self._on_year_or_status_changed)
         self.input_panel.Bind(EVT_INPUT_CHANGED_BINDER, self._on_input_changed)
+        self.Bind(wx.EVT_CLOSE, self._on_close)
 
         self.Centre()
         wx.CallAfter(self._load_current_year)
@@ -132,6 +133,17 @@ class MainFrame(wx.Frame):
 
     def _on_year_or_status_changed(self, evt):
         self._load_current_year()
+
+    def _on_close(self, evt):
+        # Without this, closing the window while an edit's 300ms debounce
+        # is still pending (e.g. typing a value and immediately quitting)
+        # loses that edit entirely -- the process exits before the
+        # CallLater ever fires. Flush synchronously before the window
+        # actually closes.
+        if self._recompute_timer.IsRunning():
+            self._recompute_timer.Stop()
+            self._save_current_input()
+        evt.Skip()
 
     def _on_input_changed(self, evt):
         self._recompute_timer.Stop()
