@@ -18,80 +18,22 @@ Cross-platform via wxPython; developed on macOS, targets Ubuntu.
 
 ## Setup
 
-Simplest, from a fresh terminal — creates the venv and installs everything needed:
-
 ```bash
 ./install-macos.sh    # macOS
 ./install-ubuntu.sh   # Ubuntu
 ```
 
-Both are safe to re-run. See below for what each one does and why, or to do it by hand.
+Both create a `.venv` and install everything needed, and are safe to re-run. Ubuntu has no prebuilt wxPython wheel on PyPI, so `install-ubuntu.sh` tries a prebuilt wheel from wxPython's own package index first and only falls back to compiling from source (slower, needs sudo for build dependencies) if none matches your release — see the script's comments for the full reasoning.
 
-### macOS / Windows
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-```
-
-wxPython ships prebuilt wheels for these platforms on PyPI, so this just works.
-
-### Ubuntu
-
-wxPython has **no prebuilt wheel on PyPI for Linux** — `pip install` falls back to compiling wxWidgets from source, which needs GTK3 development headers you almost certainly don't have installed, and takes 15–30+ minutes even once they are. Two ways to avoid that:
-
-**Option A — install a prebuilt wheel from wxPython's own package index first** (recommended; skips compiling entirely):
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install --no-index -f https://extras.wxpython.org/wxPython4/extras/linux/gtk3/ubuntu-24.04 wxPython
-pip install -e ".[dev]"
-```
-
-`--no-index` matters here — without it, `pip install -U -f <url> wxPython` still checks PyPI too and picks the *highest available version overall*, which for Linux is a source-only release with no prebuilt wheel, so it silently falls back to compiling from source anyway (`-f`/`--find-links` supplements pip's normal index, it doesn't override it). `--no-index` restricts the search to that URL alone, so pip is forced to pick the newest wheel actually published there.
-
-Installing wxPython first this way means the second command finds it already satisfied and never tries to touch it. Replace `ubuntu-24.04` with your release (e.g. `ubuntu-22.04`) — see the [full list](https://extras.wxpython.org/wxPython4/extras/linux/gtk3/) if you're not sure, or if this exact version doesn't have a wheel for your Python version yet.
-
-**Option B — let it compile from source**, if no prebuilt wheel matches your Ubuntu release or Python version. Install the build dependencies first:
-
-```bash
-sudo apt install build-essential pkg-config libgtk-3-dev libnotify-dev \
-    libsdl2-dev libjpeg-dev libtiff-dev libsm-dev libwebkit2gtk-4.1-dev \
-    libgstreamer-plugins-base1.0-dev freeglut3-dev libgl1-mesa-dev libglu1-mesa-dev
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-```
-
-Then go get coffee — building wxWidgets from source is slow.
-
-Either way, `wx.html2.WebView` (used for the Calculation Detail view) needs WebKitGTK at *runtime* regardless of how wxPython itself was installed:
-
-```bash
-sudo apt install libwebkit2gtk-4.1-0  # or libwebkit2gtk-4.0-37 on older Ubuntu
-```
+On Windows, or to set up by hand: `python3 -m venv .venv && source .venv/bin/activate && pip install -e ".[dev]"` (macOS/Windows have prebuilt wxPython wheels; on Ubuntu, run `install-ubuntu.sh` instead of this, or see its comments for the manual steps).
 
 ## Run
-
-Simplest, from a fresh terminal (no need to activate the venv first):
 
 ```bash
 ./run.sh
 ```
 
-Or, with the venv activated:
-
-```bash
-python -m tax_easy
-```
-
-Or, once installed, via the console script:
-
-```bash
-tax-easy
-```
+Or, with the venv activated: `python -m tax_easy` — or, once installed: `tax-easy`.
 
 ## Test
 
@@ -99,7 +41,7 @@ tax-easy
 pytest tax_easy/tests/
 ```
 
-19 tests cover the calculation engine (verified against hand-computed IRS examples for each bundled year and filing status), rules loading and caching, and input persistence.
+Covers the calculation engine (verified against hand-computed IRS examples for each bundled year and filing status), rules loading and caching, and input persistence.
 
 ## Architecture
 
@@ -123,54 +65,16 @@ tax_easy/
     └── explanation_view.py  # WebView for the calculation detail
 ```
 
-The key boundary: **`engine/calculator.py` contains no tax figures.** Every bracket, threshold, deduction amount, and cap comes from a `TaxYearRules` object loaded from JSON. The calculator is pure math over data it's handed, which is what makes adding a tax year a data change rather than a code change — and what makes the engine straightforward to test.
+The key boundary: **`engine/calculator.py` contains no tax figures.** Every bracket, threshold, deduction amount, and cap comes from a `TaxYearRules` object loaded from JSON. Adding or correcting a tax year means editing a JSON file in `rules/data/`, not touching calculation code.
 
-## How tax year rules work
-
-Every IRS figure that changes annually (brackets, standard deduction, long-term capital gains thresholds, SALT cap) lives in `tax_easy/rules/data/<year>.json`. To add or correct a year, edit or add a JSON file there — no code changes needed.
-
-Bundled years (2024, 2025, 2026) were hand-verified directly against irs.gov; each file records its own `source` field citing the Revenue Procedure and the pages used. Only bundled (or previously cached) years are selectable — there's no web-fetch or manual-entry fallback, deliberately: IRS announcements are free-form prose with no stable structure, and a scraper that silently misreads a bracket is worse than no scraper.
-
-A year file looks like this:
-
-```json
-{
-  "year": 2026,
-  "source": "irs.gov/newsroom/... (Rev. Proc. 2025-32); ...",
-  "ordinary_brackets": {
-    "single": [{"rate": 0.10, "upper": 12400}, ..., {"rate": 0.37, "upper": null}],
-    "mfj":    [...]
-  },
-  "standard_deduction": {"single": 16100, "mfj": 32200},
-  "ltcg_brackets": {"single": [...], "mfj": [...]},
-  "salt_cap": {
-    "single": {"cap": 40400, "phasedown_threshold": 505000,
-               "phasedown_rate": 0.30, "floor": 10000},
-    "mfj":    {...}
-  }
-}
-```
-
-`upper: null` marks the top bracket ("and above"). The SALT cap supports the OBBBA MAGI-based phasedown (2025–2029) as data, so the calculator doesn't hardcode that rule either.
+Bundled years (2024–2026) are hand-verified directly against irs.gov; each file cites its source. There's no web-fetch or manual-entry fallback for other years, deliberately — IRS announcements are free-form prose with no stable structure, and a scraper that silently misreads a bracket is worse than no scraper.
 
 ## Data locations
 
-Cached rules and your entered data are stored per the OS standard (via `platformdirs`), e.g. on Linux:
-
-- Rules cache: `~/.cache/tax-easy/rules/<year>.json`
-- Your inputs: `~/.local/share/tax-easy/<year>-<filing_status>.json`
-
-Nothing is sent anywhere — the app makes no network requests.
+Cached rules and your entered data are stored per the OS standard (via `platformdirs`), e.g. on Linux under `~/.cache/tax-easy/` and `~/.local/share/tax-easy/`. Nothing is sent anywhere — the app makes no network requests.
 
 ## Scope
 
-Covers core individual federal tax:
+Covers core individual federal tax: ordinary income brackets, standard vs. itemized deduction (mortgage interest, property tax, other SALT with its cap/phasedown, plus arbitrary other categories), short- and long-term capital gains (correctly stacked), and withholding/estimated payments already made.
 
-- Ordinary income tax via marginal brackets
-- Standard vs. itemized deduction (mortgage interest, property tax, other SALT with the applicable cap and phasedown, plus arbitrary other categories)
-- Short-term capital gains (taxed as ordinary income) and long-term capital gains (taxed at LTCG rates, correctly stacked on top of ordinary taxable income)
-- Withholding and estimated payments already made
-
-**Not modeled:** Alternative Minimum Tax (AMT), Net Investment Income Tax (NIIT), self-employment tax, credits (Child Tax Credit, EITC, etc.), state and local income tax, and filing statuses other than Single and Married Filing Jointly. MAGI is approximated as total income for the SALT phasedown, since above-the-line adjustments aren't modeled.
-
-If any of those apply to you, your actual balance will differ.
+**Not modeled:** AMT, NIIT, self-employment tax, credits, state/local income tax, and filing statuses other than Single and Married Filing Jointly. If any of those apply to you, your actual balance will differ.
