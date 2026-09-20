@@ -66,6 +66,14 @@ sudo apt install libwebkit2gtk-4.1-0  # or libwebkit2gtk-4.0-37 on older Ubuntu
 
 ## Run
 
+Simplest, from a fresh terminal (no need to activate the venv first):
+
+```bash
+./run.sh
+```
+
+Or, with the venv activated:
+
 ```bash
 python -m tax_easy
 ```
