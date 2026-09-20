@@ -8,6 +8,7 @@ from tax_easy.engine.models import CalculationResult
 
 OWED_COLOUR = wx.Colour(198, 40, 40)
 REFUND_COLOUR = wx.Colour(46, 125, 50)
+NEUTRAL_COLOUR = wx.Colour(140, 140, 140)
 
 
 def _card_colours(window: wx.Window) -> tuple[wx.Colour, wx.Colour]:
@@ -148,6 +149,11 @@ class ResultsPanel(wx.Panel):
                 font = ctrl.GetFont()
                 font.MakeBold()
                 ctrl.SetFont(font)
+        else:
+            # Muted label (not value -- the number is what people scan for)
+            # so the bold "Total federal tax" row stands out by contrast
+            # rather than every row competing at the same visual weight.
+            label_ctrl.SetForegroundColour(wx.Colour(150, 150, 150))
         grid.Add(label_ctrl, 0, wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL)
         grid.Add(value, 0, wx.ALIGN_RIGHT)
         return value
@@ -159,7 +165,14 @@ class ResultsPanel(wx.Panel):
         grid.Add(line2, 0, wx.EXPAND | wx.TOP | wx.BOTTOM, 4)
 
     def show_result(self, result: CalculationResult):
-        if result.balance_due >= 0:
+        # $0.00 is neither owed nor refunded -- red/green would read as a
+        # warning or a win for what's actually a neutral (usually empty-form)
+        # result, so it gets its own colour instead of defaulting to "owed".
+        if result.balance_due == 0:
+            self.balance_kind_label.SetLabel("ESTIMATED BALANCE DUE")
+            self.balance_amount_label.SetLabel("$0.00")
+            self.balance_amount_label.SetForegroundColour(NEUTRAL_COLOUR)
+        elif result.balance_due > 0:
             self.balance_kind_label.SetLabel("ESTIMATED BALANCE DUE")
             self.balance_amount_label.SetLabel(f"${result.balance_due:,.2f}")
             self.balance_amount_label.SetForegroundColour(OWED_COLOUR)

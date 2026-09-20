@@ -289,7 +289,13 @@ class RepeatingMoneyList(_RepeatingList):
 
     def _build_row(self, row, label: str = "", amount: float = 0.0):
         row_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        label_ctrl = wx.TextCtrl(row, value=label or self._default_label, size=(200, FIELD_HEIGHT))
+        # A real (greyed, disappears-on-focus) native hint instead of
+        # pre-filling the field with the default label as ordinary text --
+        # pre-filled text is indistinguishable from something the user
+        # actually typed, so it read as already-labeled rather than a
+        # placeholder waiting to be replaced.
+        label_ctrl = wx.TextCtrl(row, value=label, size=(200, FIELD_HEIGHT))
+        label_ctrl.SetHint(self._default_label)
         dollar = wx.StaticText(row, label="$")
         dollar.SetForegroundColour(wx.Colour(140, 140, 140))
         amount_ctrl = _money_ctrl(row, amount)
@@ -329,7 +335,8 @@ class StockSaleList(_RepeatingList):
 
     def _build_row(self, row, label: str = "", gain: float = 0.0, long_term: bool = True):
         row_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        label_ctrl = wx.TextCtrl(row, value=label or "Stock sale", size=(160, FIELD_HEIGHT))
+        label_ctrl = wx.TextCtrl(row, value=label, size=(160, FIELD_HEIGHT))
+        label_ctrl.SetHint("Stock sale")
         dollar = wx.StaticText(row, label="$")
         dollar.SetForegroundColour(wx.Colour(140, 140, 140))
         gain_ctrl = _money_ctrl(row, gain, width=140)
