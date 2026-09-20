@@ -83,6 +83,27 @@ def test_multiple_withholding_and_estimated_payment_entries_sum_correctly():
     assert result.balance_due == pytest.approx(9214.00 - 11000, abs=0.01)
 
 
+def test_multiple_property_tax_entries_sum_correctly_toward_salt_cap():
+    rules = load_bundled(2025)
+    input_ = TaxpayerInput(
+        year=2025,
+        filing_status="single",
+        incomes=[IncomeItem(label="Wages", amount=700000)],
+        deductions=Deductions(
+            property_tax=[
+                IncomeItem(label="Primary home", amount=15000),
+                IncomeItem(label="Rental property", amount=10000),
+            ]
+        ),
+    )
+    result = compute(input_, rules)
+
+    # Same combined $25,000 as test_2025_salt_cap_phasedown_applies_above_threshold,
+    # just split across two rows -- should hit the same phased-down cap.
+    salt_step = next(s for s in result.steps if s.label == "SALT cap (MAGI-phased)")
+    assert salt_step.amount == pytest.approx(10000)
+
+
 def test_2025_ltcg_stacks_on_top_of_ordinary_income():
     rules = load_bundled(2025)
     # Ordinary taxable income exactly at the 0%/15% LTCG boundary ($48,350
@@ -124,7 +145,7 @@ def test_2025_itemized_deduction_used_when_greater_than_standard():
         year=2025,
         filing_status="single",
         incomes=[IncomeItem(label="Wages", amount=200000)],
-        deductions=Deductions(mortgage_interest=20000, property_tax=8000),
+        deductions=Deductions(mortgage_interest=20000, property_tax=[IncomeItem(label="Property", amount=8000)]),
     )
     result = compute(input_, rules)
 
@@ -140,7 +161,7 @@ def test_2025_salt_cap_phasedown_applies_above_threshold():
         year=2025,
         filing_status="single",
         incomes=[IncomeItem(label="Wages", amount=700000)],
-        deductions=Deductions(property_tax=25000),
+        deductions=Deductions(property_tax=[IncomeItem(label="Property", amount=25000)]),
     )
     result = compute(input_, rules)
 
@@ -166,7 +187,7 @@ def test_2024_salt_cap_flat_no_phasedown():
         year=2024,
         filing_status="single",
         incomes=[IncomeItem(label="Wages", amount=700000)],
-        deductions=Deductions(property_tax=25000),
+        deductions=Deductions(property_tax=[IncomeItem(label="Property", amount=25000)]),
     )
     result = compute(input_, rules)
 
@@ -219,7 +240,7 @@ def test_2026_salt_cap_phasedown_applies_above_threshold():
         year=2026,
         filing_status="single",
         incomes=[IncomeItem(label="Wages", amount=700000)],
-        deductions=Deductions(property_tax=25000),
+        deductions=Deductions(property_tax=[IncomeItem(label="Property", amount=25000)]),
     )
     result = compute(input_, rules)
 
@@ -233,7 +254,7 @@ def test_2026_salt_cap_below_threshold_uses_full_cap():
         year=2026,
         filing_status="single",
         incomes=[IncomeItem(label="Wages", amount=200000)],
-        deductions=Deductions(property_tax=50000),
+        deductions=Deductions(property_tax=[IncomeItem(label="Property", amount=50000)]),
     )
     result = compute(input_, rules)
 

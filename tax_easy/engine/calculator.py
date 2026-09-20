@@ -97,7 +97,8 @@ def compute(input_: TaxpayerInput, rules: TaxYearRules) -> CalculationResult:
     magi_approx = total_income
     salt_rule = rules.salt_cap[status]
     salt_cap_amount = salt_rule.effective_cap(magi_approx)
-    salt_paid = input_.deductions.property_tax + input_.deductions.other_salt
+    total_property_tax = sum(item.amount for item in input_.deductions.property_tax)
+    salt_paid = total_property_tax + input_.deductions.other_salt
     salt_deductible = min(salt_paid, salt_cap_amount)
     if salt_rule.phasedown_threshold is not None and salt_paid > 0:
         steps.append(

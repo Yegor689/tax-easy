@@ -41,7 +41,7 @@ def test_save_then_load_round_trips_all_fields():
         stock_sales=[StockSale(label="AAPL", gain=3000, long_term=True)],
         deductions=Deductions(
             mortgage_interest=8000,
-            property_tax=6000,
+            property_tax=[IncomeItem(label="Primary home", amount=4000), IncomeItem(label="Rental", amount=2000)],
             other_salt=1000,
             other_deductible={"Charity": 2000},
         ),
@@ -57,6 +57,7 @@ def test_save_then_load_round_trips_all_fields():
     assert [i.amount for i in reloaded.incomes] == [120000, 5000]
     assert reloaded.stock_sales[0].gain == 3000
     assert reloaded.deductions.mortgage_interest == 8000
+    assert [i.amount for i in reloaded.deductions.property_tax] == [4000, 2000]
     assert reloaded.deductions.other_deductible == {"Charity": 2000}
     assert [i.amount for i in reloaded.payments.withholding] == [15000]
     assert [i.amount for i in reloaded.payments.estimated_payments] == [500, 500]
@@ -81,6 +82,26 @@ def test_loading_pre_multi_entry_payments_format_does_not_crash(tmp_path):
     reloaded = persistence.load(2025, "single")
     assert [i.amount for i in reloaded.payments.withholding] == [5000]
     assert reloaded.payments.estimated_payments == []
+
+
+def test_loading_pre_multi_entry_property_tax_format_does_not_crash():
+    # Older saved files stored property_tax as a single float rather than
+    # a list of {label, amount} rows.
+    from tax_easy.storage.paths import input_data_path
+    import json
+
+    path = input_data_path(2025, "single")
+    path.write_text(json.dumps({
+        "year": 2025,
+        "filing_status": "single",
+        "incomes": [],
+        "stock_sales": [],
+        "deductions": {"property_tax": 7000},
+        "payments": {},
+    }))
+
+    reloaded = persistence.load(2025, "single")
+    assert [i.amount for i in reloaded.deductions.property_tax] == [7000]
 
 
 def test_load_last_selection_returns_none_when_never_saved():

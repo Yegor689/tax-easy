@@ -455,9 +455,8 @@ class InputPanel(scrolled.ScrolledPanel):
             0, wx.EXPAND | wx.BOTTOM, 6,
         )
         self.mortgage_interest = _money_ctrl(ded_card)
-        self.property_tax = _money_ctrl(ded_card)
         self.other_salt = _money_ctrl(ded_card)
-        for ctrl in (self.mortgage_interest, self.property_tax, self.other_salt):
+        for ctrl in (self.mortgage_interest, self.other_salt):
             ctrl.Bind(wx.EVT_TEXT, self._fire_changed)
 
         ded_card.add(
@@ -467,13 +466,22 @@ class InputPanel(scrolled.ScrolledPanel):
             ),
             0, wx.EXPAND | wx.BOTTOM, 10,
         )
+
+        property_tax_label = wx.StaticText(ded_card, label="Property tax paid")
+        property_tax_font = property_tax_label.GetFont()
+        property_tax_font.MakeItalic()
+        property_tax_label.SetFont(property_tax_font)
+        ded_card.add(property_tax_label, 0, wx.BOTTOM, 4)
         ded_card.add(
-            self._field_with_caption(
-                ded_card, "Property tax paid", self.property_tax,
-                "Real estate property tax paid this year.",
+            self._card_hint(
+                ded_card,
+                "Real estate property tax paid this year. Add one row per property.",
             ),
-            0, wx.EXPAND | wx.BOTTOM, 10,
+            0, wx.EXPAND | wx.BOTTOM, 4,
         )
+        self.property_tax = RepeatingMoneyList(ded_card, "+ Add property", "Property tax", self._fire_changed)
+        ded_card.add(self.property_tax, 0, wx.EXPAND | wx.BOTTOM, 10)
+
         ded_card.add(
             self._field_with_caption(
                 ded_card, "Other state/local tax (SALT)", self.other_salt,
@@ -577,7 +585,7 @@ class InputPanel(scrolled.ScrolledPanel):
     def get_deductions_and_payments(self) -> tuple[Deductions, Payments]:
         deductions = Deductions(
             mortgage_interest=_parse(self.mortgage_interest.GetValue()),
-            property_tax=_parse(self.property_tax.GetValue()),
+            property_tax=self.property_tax.items(),
             other_salt=_parse(self.other_salt.GetValue()),
             other_deductible={i.label: i.amount for i in self.other_deductible.items()},
         )
@@ -593,7 +601,7 @@ class InputPanel(scrolled.ScrolledPanel):
             self.incomes.set_items(input_.incomes)
             self.stock_sales.set_items(input_.stock_sales)
             self.mortgage_interest.SetValue(_fmt(input_.deductions.mortgage_interest))
-            self.property_tax.SetValue(_fmt(input_.deductions.property_tax))
+            self.property_tax.set_items(input_.deductions.property_tax)
             self.other_salt.SetValue(_fmt(input_.deductions.other_salt))
             self.other_deductible.set_items(
                 [IncomeItem(label=k, amount=v) for k, v in input_.deductions.other_deductible.items()]

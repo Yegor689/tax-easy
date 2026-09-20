@@ -21,7 +21,7 @@ class StockSale:
 @dataclass
 class Deductions:
     mortgage_interest: float = 0.0
-    property_tax: float = 0.0
+    property_tax: list[IncomeItem] = field(default_factory=list)
     other_salt: float = 0.0  # state/local income or sales tax, before SALT cap
     other_deductible: dict[str, float] = field(default_factory=dict)
 

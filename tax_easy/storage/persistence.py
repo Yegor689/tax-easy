@@ -39,7 +39,7 @@ def _to_dict(input_: TaxpayerInput) -> dict:
         ],
         "deductions": {
             "mortgage_interest": input_.deductions.mortgage_interest,
-            "property_tax": input_.deductions.property_tax,
+            "property_tax": [{"label": i.label, "amount": i.amount} for i in input_.deductions.property_tax],
             "other_salt": input_.deductions.other_salt,
             "other_deductible": dict(input_.deductions.other_deductible),
         },
@@ -52,19 +52,28 @@ def _to_dict(input_: TaxpayerInput) -> dict:
     }
 
 
-def _payment_items_from(raw) -> list[IncomeItem]:
+def _items_from(raw, default_label: str) -> list[IncomeItem]:
     # Pre-multi-entry saved files stored a single float here instead of a
     # list of {label, amount} rows -- treat that as one unlabeled entry
     # rather than crashing on load.
     if isinstance(raw, (int, float)):
-        return [IncomeItem(label="Payment", amount=float(raw))] if raw else []
+        return [IncomeItem(label=default_label, amount=float(raw))] if raw else []
     return [IncomeItem(**i) for i in raw or []]
 
 
 def _payments_from_dict(data: dict) -> Payments:
     return Payments(
-        withholding=_payment_items_from(data.get("withholding")),
-        estimated_payments=_payment_items_from(data.get("estimated_payments")),
+        withholding=_items_from(data.get("withholding"), "Payment"),
+        estimated_payments=_items_from(data.get("estimated_payments"), "Payment"),
+    )
+
+
+def _deductions_from_dict(data: dict) -> Deductions:
+    return Deductions(
+        mortgage_interest=data.get("mortgage_interest", 0.0),
+        property_tax=_items_from(data.get("property_tax"), "Property tax"),
+        other_salt=data.get("other_salt", 0.0),
+        other_deductible=dict(data.get("other_deductible", {})),
     )
 
 
@@ -74,7 +83,7 @@ def _from_dict(data: dict) -> TaxpayerInput:
         filing_status=data["filing_status"],
         incomes=[IncomeItem(**i) for i in data.get("incomes", [])],
         stock_sales=[StockSale(**s) for s in data.get("stock_sales", [])],
-        deductions=Deductions(**data.get("deductions", {})),
+        deductions=_deductions_from_dict(data.get("deductions", {})),
         payments=_payments_from_dict(data.get("payments", {})),
     )
 
