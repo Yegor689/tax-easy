@@ -219,15 +219,20 @@ class Card(wx.Panel):
         dc.DrawRectangle(0, 0, w, h)
 
 
-class RepeatingMoneyList(wx.Panel):
-    """A label + amount row list with add/remove, e.g. multiple income sources."""
+class _RepeatingList(wx.Panel):
+    """Shared plumbing for an add/remove list of rows: row container sizing,
+    the relayout dance ScrolledPanel needs when rows come and go (see
+    _relayout_ancestors), and the changed-event bridge to the parent form.
 
-    def __init__(self, parent, add_label: str, default_label: str, on_change):
+    Subclasses build each row's own widgets via _build_row() and convert
+    rows to/from their own item type via items()/set_items().
+    """
+
+    def __init__(self, parent, add_label: str, on_change):
         super().__init__(parent)
         self.SetBackgroundColour(parent.GetBackgroundColour())
         self._on_change = on_change
-        self._default_label = default_label
-        self._rows: list[tuple[wx.TextCtrl, wx.TextCtrl, wx.Window]] = []
+        self._rows: list[tuple] = []
 
         self.sizer = wx.BoxSizer(wx.VERTICAL)
         self.rows_sizer = wx.BoxSizer(wx.VERTICAL)
@@ -238,9 +243,51 @@ class RepeatingMoneyList(wx.Panel):
         self.sizer.Add(add_btn, 0, wx.TOP, 6)
         self.SetSizer(self.sizer)
 
-    def add_row(self, label: str = "", amount: float = 0.0):
+    def _build_row(self, row: wx.Panel, *args) -> tuple:
+        """Build one row's widgets onto `row` and return the tuple to track
+        in self._rows (last element must be `row` itself). Must bind each
+        editable widget to self._changed and, for the remove button, to
+        self._remove(row)."""
+        raise NotImplementedError
+
+    def add_row(self, *args) -> None:
         row = wx.Panel(self)
         row.SetBackgroundColour(self.GetBackgroundColour())
+        entry = self._build_row(row, *args)
+
+        self.rows_sizer.Add(row, 0, wx.EXPAND | wx.BOTTOM, 6)
+        self._rows.append(entry)
+
+        self.Layout()
+        _relayout_ancestors(self)
+        self._changed()
+
+    def _remove(self, row):
+        self._rows = [r for r in self._rows if r[-1] is not row]
+        row.Destroy()
+        self.Layout()
+        _relayout_ancestors(self)
+        self._changed()
+
+    def _changed(self, evt=None):
+        if evt is not None:
+            evt.Skip()
+        self._on_change()
+
+    def _clear_rows(self):
+        for entry in self._rows:
+            entry[-1].Destroy()
+        self._rows = []
+
+
+class RepeatingMoneyList(_RepeatingList):
+    """A label + amount row list with add/remove, e.g. multiple income sources."""
+
+    def __init__(self, parent, add_label: str, default_label: str, on_change):
+        self._default_label = default_label
+        super().__init__(parent, add_label, on_change)
+
+    def _build_row(self, row, label: str = "", amount: float = 0.0):
         row_sizer = wx.BoxSizer(wx.HORIZONTAL)
         label_ctrl = wx.TextCtrl(row, value=label or self._default_label, size=(200, FIELD_HEIGHT))
         dollar = wx.StaticText(row, label="$")
@@ -254,28 +301,11 @@ class RepeatingMoneyList(wx.Panel):
         row_sizer.Add(remove_btn, 0)
         row.SetSizer(row_sizer)
 
-        self.rows_sizer.Add(row, 0, wx.EXPAND | wx.BOTTOM, 6)
-        self._rows.append((label_ctrl, amount_ctrl, row))
-
         label_ctrl.Bind(wx.EVT_TEXT, self._changed)
         amount_ctrl.Bind(wx.EVT_TEXT, self._changed)
         remove_btn.Bind(wx.EVT_BUTTON, lambda evt: self._remove(row))
 
-        self.Layout()
-        _relayout_ancestors(self)
-        self._changed()
-
-    def _remove(self, row):
-        self._rows = [r for r in self._rows if r[2] is not row]
-        row.Destroy()
-        self.Layout()
-        _relayout_ancestors(self)
-        self._changed()
-
-    def _changed(self, evt=None):
-        if evt is not None:
-            evt.Skip()
-        self._on_change()
+        return (label_ctrl, amount_ctrl, row)
 
     def items(self) -> list[IncomeItem]:
         return [
@@ -284,36 +314,20 @@ class RepeatingMoneyList(wx.Panel):
         ]
 
     def set_items(self, items: list[IncomeItem]):
-        for _l, _a, row in self._rows:
-            row.Destroy()
-        self._rows = []
+        self._clear_rows()
         for item in items:
             self.add_row(item.label, item.amount)
         if not items:
             self.add_row()
 
 
-class StockSaleList(wx.Panel):
+class StockSaleList(_RepeatingList):
     """Like RepeatingMoneyList but with a long-term/short-term toggle per row."""
 
     def __init__(self, parent, on_change):
-        super().__init__(parent)
-        self.SetBackgroundColour(parent.GetBackgroundColour())
-        self._on_change = on_change
-        self._rows: list[tuple[wx.TextCtrl, wx.TextCtrl, wx.CheckBox, wx.Window]] = []
+        super().__init__(parent, "+ Add stock sale", on_change)
 
-        self.sizer = wx.BoxSizer(wx.VERTICAL)
-        self.rows_sizer = wx.BoxSizer(wx.VERTICAL)
-        self.sizer.Add(self.rows_sizer, 0, wx.EXPAND)
-
-        add_btn = wx.Button(self, label="+ Add stock sale")
-        add_btn.Bind(wx.EVT_BUTTON, lambda evt: self.add_row())
-        self.sizer.Add(add_btn, 0, wx.TOP, 6)
-        self.SetSizer(self.sizer)
-
-    def add_row(self, label: str = "", gain: float = 0.0, long_term: bool = True):
-        row = wx.Panel(self)
-        row.SetBackgroundColour(self.GetBackgroundColour())
+    def _build_row(self, row, label: str = "", gain: float = 0.0, long_term: bool = True):
         row_sizer = wx.BoxSizer(wx.HORIZONTAL)
         label_ctrl = wx.TextCtrl(row, value=label or "Stock sale", size=(160, FIELD_HEIGHT))
         dollar = wx.StaticText(row, label="$")
@@ -330,29 +344,12 @@ class StockSaleList(wx.Panel):
         row_sizer.Add(remove_btn, 0)
         row.SetSizer(row_sizer)
 
-        self.rows_sizer.Add(row, 0, wx.EXPAND | wx.BOTTOM, 6)
-        self._rows.append((label_ctrl, gain_ctrl, lt_check, row))
-
         label_ctrl.Bind(wx.EVT_TEXT, self._changed)
         gain_ctrl.Bind(wx.EVT_TEXT, self._changed)
         lt_check.Bind(wx.EVT_CHECKBOX, self._changed)
         remove_btn.Bind(wx.EVT_BUTTON, lambda evt: self._remove(row))
 
-        self.Layout()
-        _relayout_ancestors(self)
-        self._changed()
-
-    def _remove(self, row):
-        self._rows = [r for r in self._rows if r[3] is not row]
-        row.Destroy()
-        self.Layout()
-        _relayout_ancestors(self)
-        self._changed()
-
-    def _changed(self, evt=None):
-        if evt is not None:
-            evt.Skip()
-        self._on_change()
+        return (label_ctrl, gain_ctrl, lt_check, row)
 
     def items(self) -> list[StockSale]:
         return [
@@ -361,9 +358,7 @@ class StockSaleList(wx.Panel):
         ]
 
     def set_items(self, items: list[StockSale]):
-        for _l, _g, _lt, row in self._rows:
-            row.Destroy()
-        self._rows = []
+        self._clear_rows()
         for item in items:
             self.add_row(item.label, item.gain, item.long_term)
 

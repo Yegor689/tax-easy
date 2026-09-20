@@ -153,20 +153,33 @@ def test_2025_itemized_deduction_used_when_greater_than_standard():
     assert result.deduction_used == pytest.approx(28000)
 
 
-def test_2025_salt_cap_phasedown_applies_above_threshold():
-    rules = load_bundled(2025)
-    # Total income 700,000 => MAGI approx 700,000, excess over 500,000 = 200,000
-    # reduction = 30% * 200,000 = 60,000; cap = max(40,000 - 60,000, 10,000) = 10,000
+@pytest.mark.parametrize(
+    "year, wages, property_tax, expected_cap",
+    [
+        # 2025: total income 700,000 => MAGI approx 700,000, excess over
+        # 500,000 = 200,000; reduction = 30% * 200,000 = 60,000;
+        # cap = max(40,000 - 60,000, 10,000) = 10,000
+        pytest.param(2025, 700000, 25000, 10000, id="2025-above-threshold-floors-at-10k"),
+        # 2026: base cap $40,400, threshold $505,000, rate 30%, floor $10,000.
+        # MAGI 700,000 -> excess 195,000 -> reduction 58,500 ->
+        # cap = max(40,400-58,500, 10,000) = 10,000
+        pytest.param(2026, 700000, 25000, 10000, id="2026-above-threshold-floors-at-10k"),
+        # 2026, below the phasedown threshold: full base cap applies.
+        pytest.param(2026, 200000, 50000, 40400, id="2026-below-threshold-uses-full-cap"),
+    ],
+)
+def test_salt_cap_phasedown(year, wages, property_tax, expected_cap):
+    rules = load_bundled(year)
     input_ = TaxpayerInput(
-        year=2025,
+        year=year,
         filing_status="single",
-        incomes=[IncomeItem(label="Wages", amount=700000)],
-        deductions=Deductions(property_tax=[IncomeItem(label="Property", amount=25000)]),
+        incomes=[IncomeItem(label="Wages", amount=wages)],
+        deductions=Deductions(property_tax=[IncomeItem(label="Property", amount=property_tax)]),
     )
     result = compute(input_, rules)
 
     salt_step = next(s for s in result.steps if s.label == "SALT cap (MAGI-phased)")
-    assert salt_step.amount == pytest.approx(10000)
+    assert salt_step.amount == pytest.approx(expected_cap)
 
 
 def test_2025_salt_cap_step_hidden_when_no_salt_paid():
@@ -232,23 +245,10 @@ def test_2026_single_wages_only_standard_deduction():
     assert result.total_tax == pytest.approx(8770.00, abs=0.01)
 
 
-def test_2026_salt_cap_phasedown_applies_above_threshold():
-    # Base cap $40,400, threshold $505,000, rate 30%, floor $10,000.
-    # MAGI 700,000 -> excess 195,000 -> reduction 58,500 -> cap = max(40,400-58,500, 10,000) = 10,000
-    rules = load_bundled(2026)
-    input_ = TaxpayerInput(
-        year=2026,
-        filing_status="single",
-        incomes=[IncomeItem(label="Wages", amount=700000)],
-        deductions=Deductions(property_tax=[IncomeItem(label="Property", amount=25000)]),
-    )
-    result = compute(input_, rules)
-
-    salt_step = next(s for s in result.steps if s.label == "SALT cap (MAGI-phased)")
-    assert salt_step.amount == pytest.approx(10000)
-
-
-def test_2026_salt_cap_below_threshold_uses_full_cap():
+def test_2026_salt_cap_below_threshold_flows_into_itemized_total():
+    # Cap-amount coverage for this scenario is in test_salt_cap_phasedown
+    # (id: 2026-below-threshold-uses-full-cap) -- this checks the cap then
+    # actually feeds through into the itemized deduction total.
     rules = load_bundled(2026)
     input_ = TaxpayerInput(
         year=2026,
@@ -258,7 +258,5 @@ def test_2026_salt_cap_below_threshold_uses_full_cap():
     )
     result = compute(input_, rules)
 
-    salt_step = next(s for s in result.steps if s.label == "SALT cap (MAGI-phased)")
-    assert salt_step.amount == pytest.approx(40400)
     itemized_step = next(s for s in result.steps if s.label == "Itemized deduction total")
     assert itemized_step.amount == pytest.approx(40400)

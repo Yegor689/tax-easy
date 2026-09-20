@@ -28,26 +28,28 @@ def _write_atomic(path: Path, text: str) -> None:
     os.replace(tmp_path, path)
 
 
+def _items_to_dicts(items: list[IncomeItem]) -> list[dict]:
+    return [{"label": i.label, "amount": i.amount} for i in items]
+
+
 def _to_dict(input_: TaxpayerInput) -> dict:
     return {
         "year": input_.year,
         "filing_status": input_.filing_status,
-        "incomes": [{"label": i.label, "amount": i.amount} for i in input_.incomes],
+        "incomes": _items_to_dicts(input_.incomes),
         "stock_sales": [
             {"label": s.label, "gain": s.gain, "long_term": s.long_term}
             for s in input_.stock_sales
         ],
         "deductions": {
             "mortgage_interest": input_.deductions.mortgage_interest,
-            "property_tax": [{"label": i.label, "amount": i.amount} for i in input_.deductions.property_tax],
+            "property_tax": _items_to_dicts(input_.deductions.property_tax),
             "other_salt": input_.deductions.other_salt,
             "other_deductible": dict(input_.deductions.other_deductible),
         },
         "payments": {
-            "withholding": [{"label": i.label, "amount": i.amount} for i in input_.payments.withholding],
-            "estimated_payments": [
-                {"label": i.label, "amount": i.amount} for i in input_.payments.estimated_payments
-            ],
+            "withholding": _items_to_dicts(input_.payments.withholding),
+            "estimated_payments": _items_to_dicts(input_.payments.estimated_payments),
         },
     }
 
