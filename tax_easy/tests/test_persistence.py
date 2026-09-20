@@ -19,6 +19,10 @@ def isolated_data_dir(tmp_path, monkeypatch):
     path_fn = lambda year, filing_status: data / f"{year}-{filing_status}.json"
     monkeypatch.setattr("tax_easy.storage.paths.input_data_path", path_fn)
     monkeypatch.setattr(persistence, "input_data_path", path_fn)
+
+    last_selection_fn = lambda: data / "last_selection.json"
+    monkeypatch.setattr("tax_easy.storage.paths.last_selection_path", last_selection_fn)
+    monkeypatch.setattr(persistence, "last_selection_path", last_selection_fn)
     yield
 
 
@@ -77,6 +81,20 @@ def test_loading_pre_multi_entry_payments_format_does_not_crash(tmp_path):
     reloaded = persistence.load(2025, "single")
     assert [i.amount for i in reloaded.payments.withholding] == [5000]
     assert reloaded.payments.estimated_payments == []
+
+
+def test_load_last_selection_returns_none_when_never_saved():
+    assert persistence.load_last_selection() is None
+
+
+def test_save_and_load_last_selection_round_trips():
+    persistence.save_last_selection(2025, "mfj")
+    assert persistence.load_last_selection() == (2025, "mfj")
+
+
+def test_load_last_selection_returns_none_on_corrupt_file(tmp_path):
+    persistence.last_selection_path().write_text("not valid json")
+    assert persistence.load_last_selection() is None
 
 
 def test_single_and_mfj_data_for_same_year_do_not_clobber_each_other():

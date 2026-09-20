@@ -11,7 +11,7 @@ from tax_easy.engine.models import (
     StockSale,
     TaxpayerInput,
 )
-from tax_easy.storage.paths import input_data_path
+from tax_easy.storage.paths import input_data_path, last_selection_path
 
 
 def _to_dict(input_: TaxpayerInput) -> dict:
@@ -76,3 +76,23 @@ def load(year: int, filing_status: str) -> TaxpayerInput:
         return TaxpayerInput(year=year, filing_status=filing_status)
     data = json.loads(path.read_text())
     return _from_dict(data)
+
+
+def save_last_selection(year: int, filing_status: str) -> None:
+    """Remember which year/filing status was showing when the app closed,
+    so the next launch reopens to it instead of always defaulting to the
+    newest bundled year and Single."""
+    last_selection_path().write_text(json.dumps({"year": year, "filing_status": filing_status}))
+
+
+def load_last_selection() -> tuple[int, str] | None:
+    """Return (year, filing_status) from the last session, or None if
+    there's no saved selection yet (first run)."""
+    path = last_selection_path()
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text())
+        return int(data["year"]), str(data["filing_status"])
+    except (json.JSONDecodeError, KeyError, TypeError, ValueError):
+        return None

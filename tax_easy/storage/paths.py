@@ -28,3 +28,7 @@ def rules_cache_path(year: int) -> Path:
 
 def input_data_path(year: int, filing_status: str) -> Path:
     return data_dir() / f"{year}-{filing_status}.json"
+
+
+def last_selection_path() -> Path:
+    return data_dir() / "last_selection.json"

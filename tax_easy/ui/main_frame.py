@@ -44,7 +44,18 @@ class MainFrame(wx.Frame):
         # Only bundled/cached years are selectable -- there is no fetch or
         # manual-entry fallback for other years (see rules/provider.py).
         ready_years = available_years()
-        default_year = max(ready_years) if ready_years else datetime.date.today().year
+        newest_year = max(ready_years) if ready_years else datetime.date.today().year
+
+        # Reopen to whatever year/status was showing last session, rather
+        # than always defaulting to the newest year and Single -- falls
+        # back to the newest year if there's no saved selection yet, or if
+        # the saved year is no longer available.
+        last_selection = persistence.load_last_selection()
+        if last_selection is not None and last_selection[0] in ready_years:
+            default_year, default_status = last_selection
+        else:
+            default_year, default_status = newest_year, SINGLE
+
         self.year_choice = wx.ComboBox(
             top_bar, choices=[str(y) for y in ready_years], value=str(default_year),
             style=wx.CB_DROPDOWN | wx.CB_READONLY, size=(90, -1),
@@ -53,7 +64,7 @@ class MainFrame(wx.Frame):
 
         top_bar_sizer.Add(wx.StaticText(top_bar, label="Filing status"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
         self.status_choice = wx.Choice(top_bar, choices=["Single", "Married Filing Jointly"])
-        self.status_choice.SetSelection(0)
+        self.status_choice.SetSelection(0 if default_status == SINGLE else 1)
         top_bar_sizer.Add(self.status_choice, 0)
 
         # wrap in an outer sizer so the bar gets vertical padding beyond
@@ -122,6 +133,7 @@ class MainFrame(wx.Frame):
         self.input_panel.load(saved_input)
         self._active_year = year
         self._active_status = status
+        persistence.save_last_selection(year, status)
         self._recompute()
 
     def _resolve_rules(self, year: int) -> TaxYearRules | None:
