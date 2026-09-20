@@ -388,6 +388,49 @@ class InputPanel(scrolled.ScrolledPanel):
         income_card.add(self.incomes, 0, wx.EXPAND)
         outer.Add(income_card, 0, wx.EXPAND | wx.ALL, 10)
 
+        pay_card = Card(self, "Payments already made")
+        pay_card.add(
+            self._card_hint(pay_card, "Federal tax already paid toward this year's bill, so the estimate reflects what you still owe."),
+            0, wx.EXPAND | wx.BOTTOM, 6,
+        )
+        withholding_label = wx.StaticText(pay_card, label="Withholding")
+        withholding_font = withholding_label.GetFont()
+        withholding_font.MakeItalic()
+        withholding_label.SetFont(withholding_font)
+        pay_card.add(withholding_label, 0, wx.BOTTOM, 4)
+        pay_card.add(
+            self._card_hint(
+                pay_card,
+                "Federal income tax already withheld from your paychecks this year "
+                "(see your latest pay stub or W-2). Add one row per job/source.",
+            ),
+            0, wx.EXPAND | wx.BOTTOM, 4,
+        )
+        self.withholding = RepeatingMoneyList(pay_card, "+ Add withholding", "Withholding", self._fire_changed)
+        pay_card.add(self.withholding, 0, wx.EXPAND)
+
+        pay_card.add((0, 12))
+        estimated_label = wx.StaticText(pay_card, label="Estimated tax payments")
+        estimated_font = estimated_label.GetFont()
+        estimated_font.MakeItalic()
+        estimated_label.SetFont(estimated_font)
+        pay_card.add(estimated_label, 0, wx.BOTTOM, 4)
+        pay_card.add(
+            self._card_hint(
+                pay_card,
+                "Quarterly estimated tax payments sent directly to the IRS (Form "
+                "1040-ES), e.g. for self-employment or investment income. Add one "
+                "row per payment.",
+            ),
+            0, wx.EXPAND | wx.BOTTOM, 4,
+        )
+        self.estimated_payments = RepeatingMoneyList(
+            pay_card, "+ Add estimated payment", "Estimated payment", self._fire_changed
+        )
+        pay_card.add(self.estimated_payments, 0, wx.EXPAND)
+
+        outer.Add(pay_card, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
+
         stock_card = Card(self, "Stock sales")
         stock_card.add(
             self._card_hint(
@@ -455,34 +498,6 @@ class InputPanel(scrolled.ScrolledPanel):
         ded_card.add(self.other_deductible, 0, wx.EXPAND)
 
         outer.Add(ded_card, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
-
-        pay_card = Card(self, "Payments already made")
-        pay_card.add(
-            self._card_hint(pay_card, "Federal tax already paid toward this year's bill, so the estimate reflects what you still owe."),
-            0, wx.EXPAND | wx.BOTTOM, 6,
-        )
-        self.withholding = _money_ctrl(pay_card)
-        self.estimated_payments = _money_ctrl(pay_card)
-        for ctrl in (self.withholding, self.estimated_payments):
-            ctrl.Bind(wx.EVT_TEXT, self._fire_changed)
-
-        pay_card.add(
-            self._field_with_caption(
-                pay_card, "Withholding to date", self.withholding,
-                "Federal income tax already withheld from your paychecks this year "
-                "(see your latest pay stub or W-2).",
-            ),
-            0, wx.EXPAND | wx.BOTTOM, 10,
-        )
-        pay_card.add(
-            self._field_with_caption(
-                pay_card, "Estimated tax payments made", self.estimated_payments,
-                "Quarterly estimated tax payments sent directly to the IRS (Form 1040-ES), "
-                "e.g. for self-employment or investment income.",
-            ),
-            0, wx.EXPAND,
-        )
-        outer.Add(pay_card, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
 
         self.SetSizer(outer)
         self.SetupScrolling(scroll_x=False)
@@ -567,8 +582,8 @@ class InputPanel(scrolled.ScrolledPanel):
             other_deductible={i.label: i.amount for i in self.other_deductible.items()},
         )
         payments = Payments(
-            withholding=_parse(self.withholding.GetValue()),
-            estimated_payments=_parse(self.estimated_payments.GetValue()),
+            withholding=self.withholding.items(),
+            estimated_payments=self.estimated_payments.items(),
         )
         return deductions, payments
 
@@ -583,8 +598,8 @@ class InputPanel(scrolled.ScrolledPanel):
             self.other_deductible.set_items(
                 [IncomeItem(label=k, amount=v) for k, v in input_.deductions.other_deductible.items()]
             )
-            self.withholding.SetValue(_fmt(input_.payments.withholding))
-            self.estimated_payments.SetValue(_fmt(input_.payments.estimated_payments))
+            self.withholding.set_items(input_.payments.withholding)
+            self.estimated_payments.set_items(input_.payments.estimated_payments)
         finally:
             self._suspend_events = False
         self.Layout()

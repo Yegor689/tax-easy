@@ -53,13 +53,34 @@ def test_2025_single_with_withholding_produces_refund():
         year=2025,
         filing_status="single",
         incomes=[IncomeItem(label="Wages", amount=80000)],
-        payments=Payments(withholding=12000),
+        payments=Payments(withholding=[IncomeItem(label="Job", amount=12000)]),
     )
     result = compute(input_, rules)
 
     assert result.total_tax == pytest.approx(9214.00, abs=0.01)
     assert result.balance_due == pytest.approx(9214.00 - 12000, abs=0.01)
     assert result.balance_due < 0
+
+
+def test_multiple_withholding_and_estimated_payment_entries_sum_correctly():
+    rules = load_bundled(2025)
+    input_ = TaxpayerInput(
+        year=2025,
+        filing_status="single",
+        incomes=[IncomeItem(label="Wages", amount=80000)],
+        payments=Payments(
+            withholding=[IncomeItem(label="Job 1", amount=5000), IncomeItem(label="Job 2", amount=3000)],
+            estimated_payments=[
+                IncomeItem(label="Q1", amount=1000),
+                IncomeItem(label="Q2", amount=1000),
+                IncomeItem(label="Q3", amount=1000),
+            ],
+        ),
+    )
+    result = compute(input_, rules)
+
+    assert result.total_payments == pytest.approx(11000)
+    assert result.balance_due == pytest.approx(9214.00 - 11000, abs=0.01)
 
 
 def test_2025_ltcg_stacks_on_top_of_ordinary_income():

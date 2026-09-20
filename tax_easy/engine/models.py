@@ -28,8 +28,8 @@ class Deductions:
 
 @dataclass
 class Payments:
-    withholding: float = 0.0
-    estimated_payments: float = 0.0
+    withholding: list[IncomeItem] = field(default_factory=list)
+    estimated_payments: list[IncomeItem] = field(default_factory=list)
 
 
 @dataclass

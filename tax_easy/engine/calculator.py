@@ -179,7 +179,9 @@ def compute(input_: TaxpayerInput, rules: TaxYearRules) -> CalculationResult:
         )
     )
 
-    total_payments = input_.payments.withholding + input_.payments.estimated_payments
+    total_withholding = sum(item.amount for item in input_.payments.withholding)
+    total_estimated = sum(item.amount for item in input_.payments.estimated_payments)
+    total_payments = total_withholding + total_estimated
     steps.append(
         CalculationStep(
             label="Total payments already made",

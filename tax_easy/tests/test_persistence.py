@@ -41,7 +41,10 @@ def test_save_then_load_round_trips_all_fields():
             other_salt=1000,
             other_deductible={"Charity": 2000},
         ),
-        payments=Payments(withholding=15000, estimated_payments=1000),
+        payments=Payments(
+            withholding=[IncomeItem(label="Job", amount=15000)],
+            estimated_payments=[IncomeItem(label="Q1", amount=500), IncomeItem(label="Q2", amount=500)],
+        ),
     )
     persistence.save(original)
     reloaded = persistence.load(2025, "mfj")
@@ -51,7 +54,29 @@ def test_save_then_load_round_trips_all_fields():
     assert reloaded.stock_sales[0].gain == 3000
     assert reloaded.deductions.mortgage_interest == 8000
     assert reloaded.deductions.other_deductible == {"Charity": 2000}
-    assert reloaded.payments.estimated_payments == 1000
+    assert [i.amount for i in reloaded.payments.withholding] == [15000]
+    assert [i.amount for i in reloaded.payments.estimated_payments] == [500, 500]
+
+
+def test_loading_pre_multi_entry_payments_format_does_not_crash(tmp_path):
+    # Older saved files stored withholding/estimated_payments as a single
+    # float rather than a list of {label, amount} rows.
+    from tax_easy.storage.paths import input_data_path
+    import json
+
+    path = input_data_path(2025, "single")
+    path.write_text(json.dumps({
+        "year": 2025,
+        "filing_status": "single",
+        "incomes": [],
+        "stock_sales": [],
+        "deductions": {},
+        "payments": {"withholding": 5000, "estimated_payments": 0},
+    }))
+
+    reloaded = persistence.load(2025, "single")
+    assert [i.amount for i in reloaded.payments.withholding] == [5000]
+    assert reloaded.payments.estimated_payments == []
 
 
 def test_single_and_mfj_data_for_same_year_do_not_clobber_each_other():

@@ -30,10 +30,28 @@ def _to_dict(input_: TaxpayerInput) -> dict:
             "other_deductible": dict(input_.deductions.other_deductible),
         },
         "payments": {
-            "withholding": input_.payments.withholding,
-            "estimated_payments": input_.payments.estimated_payments,
+            "withholding": [{"label": i.label, "amount": i.amount} for i in input_.payments.withholding],
+            "estimated_payments": [
+                {"label": i.label, "amount": i.amount} for i in input_.payments.estimated_payments
+            ],
         },
     }
+
+
+def _payment_items_from(raw) -> list[IncomeItem]:
+    # Pre-multi-entry saved files stored a single float here instead of a
+    # list of {label, amount} rows -- treat that as one unlabeled entry
+    # rather than crashing on load.
+    if isinstance(raw, (int, float)):
+        return [IncomeItem(label="Payment", amount=float(raw))] if raw else []
+    return [IncomeItem(**i) for i in raw or []]
+
+
+def _payments_from_dict(data: dict) -> Payments:
+    return Payments(
+        withholding=_payment_items_from(data.get("withholding")),
+        estimated_payments=_payment_items_from(data.get("estimated_payments")),
+    )
 
 
 def _from_dict(data: dict) -> TaxpayerInput:
@@ -43,7 +61,7 @@ def _from_dict(data: dict) -> TaxpayerInput:
         incomes=[IncomeItem(**i) for i in data.get("incomes", [])],
         stock_sales=[StockSale(**s) for s in data.get("stock_sales", [])],
         deductions=Deductions(**data.get("deductions", {})),
-        payments=Payments(**data.get("payments", {})),
+        payments=_payments_from_dict(data.get("payments", {})),
     )
 
 
