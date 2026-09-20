@@ -7,10 +7,19 @@ from html import escape
 from tax_easy.engine.models import CalculationResult
 from tax_easy.rules.schema import TaxYearRules
 
+# Also used directly by ui/explanation_view.py to set the hosting
+# wx.html2.WebView widget's own background (not just the page's CSS) --
+# see the comment there for why that's needed on Linux.
+PAGE_BACKGROUND = "#2b2b2b"
+
 # Fixed dark theme matching the rest of the app's UI, rather than relying
 # on the WebView's own light/dark default -- it doesn't reliably follow
 # the desktop app's own theme, which produced a jarring white panel
 # embedded in an otherwise dark window.
+#
+# Built via string concatenation (not an f-string) so the rest of this
+# block's literal CSS braces don't need escaping -- only the background
+# line needs PAGE_BACKGROUND substituted in.
 _STYLE = """
 :root { color-scheme: dark; }
 * { box-sizing: border-box; }
@@ -18,7 +27,7 @@ body {
     font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
     margin: 0;
     padding: 20px 24px;
-    background: #2b2b2b;
+    background: """ + PAGE_BACKGROUND + """;
     color: #e8e8e8;
 }
 h2 { font-size: 1.05rem; margin: 0 0 6px; }
