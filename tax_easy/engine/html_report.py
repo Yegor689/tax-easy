@@ -22,7 +22,11 @@ body {
     color: #e8e8e8;
 }
 h2 { font-size: 1.05rem; margin: 0 0 6px; }
-.source { color: #999; font-size: 0.8rem; margin-bottom: 18px; line-height: 1.4; }
+.source { color: #999; font-size: 0.8rem; margin-bottom: 18px; }
+.source summary { cursor: pointer; }
+.source summary:hover { color: #bbb; }
+.source[open] summary { margin-bottom: 6px; }
+.source-detail { line-height: 1.4; }
 table { border-collapse: collapse; width: 100%; table-layout: fixed; }
 col.step { width: 26%; }
 col.detail { width: 54%; }
@@ -45,7 +49,8 @@ th {
 }
 td.amount { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 tr.total td { font-weight: 700; border-top: 2px solid #666; background: #333; }
-tr.negative td.amount { color: #ff6b6b; }
+td.amount.negative { color: #ff6b6b; }
+td.amount.positive-total { color: #7ed99a; }
 
 /* Charts: dataviz skill's dark-mode categorical palette (slots 1-3: blue,
    orange, aqua), validated against this page's #2b2b2b surface. */
@@ -182,12 +187,26 @@ def render(result: CalculationResult, rules: TaxYearRules, filing_status: str) -
         if step.label in _HIDE_WHEN_ZERO and step.amount == 0:
             continue
         cls = "total" if step.label in total_labels else ""
-        amount_cls = "amount negative" if step.amount < 0 else "amount"
+        # "Refund"/"Balance due" already say which one this is via the
+        # label, so show the magnitude rather than a raw negative number --
+        # a "Refund" row reading "$-17,930.00" put the minus sign between
+        # the dollar sign and the digits (from blindly formatting a signed
+        # float after prepending "$"), and duplicated a sign the label
+        # already conveys. Colour that row red/green to match the Summary
+        # tab's balance card instead of leaving it looking identical to a
+        # balance-due result.
+        amount = abs(step.amount) if step.label == "Refund" else step.amount
+        if step.label == "Refund":
+            amount_cls = "amount positive-total"
+        elif step.label == "Balance due":
+            amount_cls = "amount negative" if amount > 0 else "amount"
+        else:
+            amount_cls = "amount negative" if amount < 0 else "amount"
         rows.append(
             f'<tr class="{cls}">'
             f"<td>{escape(step.label)}</td>"
             f"<td>{escape(step.detail)}</td>"
-            f'<td class="{amount_cls}">${step.amount:,.2f}</td>'
+            f'<td class="{amount_cls}">${amount:,.2f}</td>'
             "</tr>"
         )
 
@@ -201,7 +220,10 @@ def render(result: CalculationResult, rules: TaxYearRules, filing_status: str) -
 <head><meta charset="utf-8"><style>{_STYLE}</style></head>
 <body>
 <h2>Calculation detail — Tax Year {rules.year} ({status_label})</h2>
-<div class="source">Rules source: {escape(rules.source)}</div>
+<details class="source">
+<summary>Rules source &amp; verification notes</summary>
+<div class="source-detail">{escape(rules.source)}</div>
+</details>
 {charts_html}
 <table>
 <colgroup><col class="step"><col class="detail"><col class="amount"></colgroup>
