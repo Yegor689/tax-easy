@@ -18,6 +18,15 @@ Cross-platform via wxPython; developed on macOS, targets Ubuntu.
 
 ## Setup
 
+Simplest, from a fresh terminal — creates the venv and installs everything needed:
+
+```bash
+./install-macos.sh    # macOS
+./install-ubuntu.sh   # Ubuntu
+```
+
+Both are safe to re-run. See below for what each one does and why, or to do it by hand.
+
 ### macOS / Windows
 
 ```bash
