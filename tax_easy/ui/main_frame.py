@@ -147,14 +147,18 @@ class MainFrame(wx.Frame):
         self._load_current_year()
 
     def _on_close(self, evt):
-        # Without this, closing the window while an edit's 300ms debounce
-        # is still pending (e.g. typing a value and immediately quitting)
-        # loses that edit entirely -- the process exits before the
-        # CallLater ever fires. Flush synchronously before the window
-        # actually closes.
-        if self._recompute_timer.IsRunning():
-            self._recompute_timer.Stop()
-            self._save_current_input()
+        # Always flush on close, unconditionally -- don't gate this on
+        # self._recompute_timer.IsRunning(). An edit fires InputChangedEvent
+        # via wx.PostEvent (queued, not delivered synchronously), so the
+        # timer that IsRunning() checks may not be armed yet even though the
+        # in-memory widgets already hold the new value (e.g. closing right
+        # after add_row()/a keystroke, before the event loop has dispatched
+        # the queued event and _on_input_changed has had a chance to run).
+        # Checking IsRunning() would silently skip the save in that window.
+        # _save_current_input() itself is cheap and already a no-op if
+        # nothing has been loaded yet, so it's safe to call unconditionally.
+        self._recompute_timer.Stop()
+        self._save_current_input()
         evt.Skip()
 
     def _on_input_changed(self, evt):

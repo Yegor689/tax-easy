@@ -54,3 +54,20 @@ def test_available_years_lists_bundled_years():
     assert 2024 in years
     assert 2025 in years
     assert 2026 in years
+
+
+def test_corrupt_cache_file_recovers_by_recopying_bundled_data():
+    cache_path = provider.rules_cache_path(2025)
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    cache_path.write_text("{not valid json")
+
+    rules = provider.get_rules(2025)
+    assert rules.year == 2025
+    assert json.loads(cache_path.read_text())["year"] == 2025
+
+
+def test_get_rules_never_leaves_a_tmp_file_behind():
+    provider.get_rules(2025)
+    cache_path = provider.rules_cache_path(2025)
+    tmp_path = cache_path.with_suffix(cache_path.suffix + ".tmp")
+    assert not tmp_path.exists()

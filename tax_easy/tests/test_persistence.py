@@ -97,6 +97,42 @@ def test_load_last_selection_returns_none_on_corrupt_file(tmp_path):
     assert persistence.load_last_selection() is None
 
 
+def test_loading_corrupt_input_file_returns_empty_input_instead_of_crashing():
+    from tax_easy.storage.paths import input_data_path
+
+    path = input_data_path(2025, "single")
+    path.write_text("{not valid json")
+
+    result = persistence.load(2025, "single")
+    assert result.year == 2025
+    assert result.filing_status == "single"
+    assert result.incomes == []
+
+
+def test_loading_input_file_missing_required_keys_does_not_crash():
+    from tax_easy.storage.paths import input_data_path
+    import json
+
+    path = input_data_path(2025, "single")
+    path.write_text(json.dumps({"incomes": []}))  # missing "year"/"filing_status"
+
+    result = persistence.load(2025, "single")
+    assert result.year == 2025
+    assert result.filing_status == "single"
+
+
+def test_save_does_not_leave_a_tmp_file_behind():
+    from tax_easy.storage.paths import input_data_path
+
+    original = TaxpayerInput(year=2025, filing_status="single", incomes=[IncomeItem(label="X", amount=1)])
+    persistence.save(original)
+
+    path = input_data_path(2025, "single")
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+    assert not tmp_path.exists()
+    assert path.exists()
+
+
 def test_single_and_mfj_data_for_same_year_do_not_clobber_each_other():
     single_input = TaxpayerInput(
         year=2025, filing_status="single", incomes=[IncomeItem(label="Wages", amount=80000)]

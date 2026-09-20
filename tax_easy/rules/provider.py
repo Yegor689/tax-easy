@@ -9,6 +9,7 @@ file to rules/data/.
 from __future__ import annotations
 
 import json
+import os
 from importlib import resources
 
 from tax_easy.rules.schema import TaxYearRules
@@ -27,13 +28,24 @@ def get_rules(year: int) -> TaxYearRules:
     """Return rules for `year`, or raise RulesUnavailable."""
     cache_path = rules_cache_path(year)
     if cache_path.exists():
-        return TaxYearRules.from_dict(json.loads(cache_path.read_text()))
+        try:
+            return TaxYearRules.from_dict(json.loads(cache_path.read_text()))
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError):
+            # A truncated/corrupt cache file (e.g. killed mid-write) would
+            # otherwise permanently crash this year rather than falling
+            # back to re-copying the known-good bundled file below.
+            pass
 
     bundled = _bundled_path(year)
     if bundled.is_file():
         data = json.loads(bundled.read_text())
         rules = TaxYearRules.from_dict(data)
-        cache_path.write_text(json.dumps(data, indent=2))
+        # Write to a temp file and rename into place atomically, so a
+        # process kill mid-write can never leave a truncated cache file
+        # for the next launch to trip over.
+        tmp_path = cache_path.with_suffix(cache_path.suffix + ".tmp")
+        tmp_path.write_text(json.dumps(data, indent=2))
+        os.replace(tmp_path, cache_path)
         return rules
 
     raise RulesUnavailable(
