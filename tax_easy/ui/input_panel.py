@@ -509,7 +509,27 @@ class InputPanel(scrolled.ScrolledPanel):
 
         outer.Add(ded_card, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
 
-        self.SetSizer(outer)
+        # This panel is a ScrolledPanel with a vertical scrollbar drawn
+        # inside its own client area (not outside it) -- so a card's right
+        # margin above is measured against the panel's full logical width,
+        # and the scrollbar eats into that margin visually, leaving card
+        # content hugging the scrollbar thumb much more tightly than the
+        # matching gap on the splitter's non-scrolling side. A trailing
+        # spacer sized to the actual scrollbar width (platform-dependent --
+        # Ubuntu's GTK scrollbar differs from macOS's) restores a
+        # consistent gap regardless of platform.
+        # GetMetric() can return -1 if the platform/backend doesn't define
+        # this metric; fall back to a reasonable fixed width rather than a
+        # negative-width spacer in that case.
+        scrollbar_width = wx.SystemSettings.GetMetric(wx.SYS_VSCROLL_X)
+        if scrollbar_width < 0:
+            scrollbar_width = 16
+
+        root = wx.BoxSizer(wx.HORIZONTAL)
+        root.Add(outer, 1, wx.EXPAND)
+        root.Add((scrollbar_width, 0), 0)
+
+        self.SetSizer(root)
         self.SetupScrolling(scroll_x=False)
         # SetupScrolling() computes the scrollable virtual size once, from
         # the sizer as it stood at that moment -- a plain Layout() call
